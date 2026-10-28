@@ -1,0 +1,4 @@
+project_id = "levelup_teacher_toolkit"
+
+[functions.elevenlabs]
+verify_jwt = true

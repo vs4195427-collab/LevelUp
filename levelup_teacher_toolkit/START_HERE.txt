@@ -1,0 +1,18 @@
+LEVELUP TEACHER TOOLKIT — SIGN IN / SIGN UP EDITION
+
+Full setup instructions: SETUP_SUPABASE.md
+
+1. Extract the complete ZIP folder.
+2. Open YOUR Supabase project in the dashboard. The included supabase-config.js contains a publishable URL and key carried over from your uploaded ZIP; if using another Supabase project, replace BOTH values with that project's values.
+3. Supabase > SQL Editor > New query: paste and RUN supabase_auth_setup.sql.
+4. Supabase > Authentication > Sign In / Providers > Email: enable email/password accounts and sign-ups. For a closed hackathon demo with no verification email, temporarily switch Confirm Email OFF (insecure for production).
+5. Supabase > Authentication > URL Configuration: add your Live Server/deployment URL.
+6. VS Code > Open folder > right-click index.html > Open with Live Server.
+7. Sign up with name, email, password and Teacher or Student. Afterwards log in with email, password and the SAME role. Use Log out to close the session.
+
+No invite codes, npm, build step or mail provider are required for a closed demonstration. The public Supabase JavaScript SDK is loaded online.
+
+TEACHER: teacher dashboard and classroom tools.
+STUDENT: individual learning portal only; teacher tools are not available to student accounts.
+
+IMPORTANT: Most coursework and student/class information is stored on this browser/device, not synchronized between Teacher and Student accounts. Supabase is used for authentication and account roles, not full classroom sync. A real database test still requires running the SQL in YOUR Supabase project.

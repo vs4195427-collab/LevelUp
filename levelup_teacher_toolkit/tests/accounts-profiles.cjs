@@ -1,0 +1,36 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert'),path=require('path');
+const root=path.join(__dirname,'..'),html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+const src=html.split('  <script>\n',2)[1].split('  </script>',1)[0];
+const handlers={},elements={},storage={};
+const cls=()=>({add(){},remove(){},toggle(){},contains(){return false}});
+const make=()=>({innerHTML:'',textContent:'',value:'',classList:cls(),setAttribute(){},style:{setProperty(){}},addEventListener(name,f){this[name]=f},focus(){},remove(){},replaceWith(){},cloneNode(){return make()},querySelector(){return make()},querySelectorAll(){return []}});
+const doc={activeElement:{focus(){}},addEventListener(n,f){(handlers[n]??=[]).push(f)},getElementById(id){return elements[id]??=make()},querySelectorAll(){return []},body:{dataset:{},classList:cls(),appendChild(){}},createElement:make};
+const c=vm.createContext({document:doc,window:{LEVELUP_SUPABASE:{url:'https://test.supabase.co',publishableKey:'test-public-key'},scrollTo(){}},location:{reload(){}},sessionStorage:{getItem:k=>storage[k],setItem:(k,v)=>storage[k]=v,removeItem:k=>delete storage[k]},localStorage:{getItem(){return null},setItem(){}},console,Date,Math,setInterval,clearInterval,setTimeout,clearTimeout});
+for(const code of [src,fs.readFileSync(path.join(root,'design.js'),'utf8'),fs.readFileSync(path.join(root,'ux.js'),'utf8'),fs.readFileSync(path.join(root,'account.js'),'utf8')])vm.runInContext(code,c);
+vm.runInContext('uxEnsureState();showToast=()=>{};',c);
+vm.runInContext("accountGate('', 'signup')",c);
+assert.match(elements.accountGate.innerHTML,/Create your account/);
+assert.match(elements.accountGate.innerHTML,/Teacher<\/option>/);
+assert.match(elements.accountGate.innerHTML,/Student<\/option>/);
+assert.doesNotMatch(elements.accountGate.innerHTML,/accountInviteCode/);
+vm.runInContext("accountGate('', 'setup')",c);
+assert.match(elements.accountGate.innerHTML,/Complete your account/);
+// The profile text itself must be a button, including follow-up students.
+const roster=vm.runInContext('uxClasses()',c);assert.match(roster,/<button data-ux-open-student="\d+">Open profile/);
+vm.runInContext('openStudentModal(state.students[0].id)',c);
+assert.match(elements.studentModalContent.innerHTML,/Reading Progression/);assert.match(elements.studentModalContent.innerHTML,/Quick Group Reassignment/);assert.match(elements.studentModalContent.innerHTML,/profileSaveNote/);
+doc.getElementById('profileNote').value='Practice blending daily';elements.profileSaveNote.click();assert.equal(vm.runInContext('state.students[0].notes',c),'Practice blending daily');
+vm.runInContext("state.attendance.records={}",c);assert.equal(vm.runInContext('getStudentAttendanceSummary(state.students[0].id).totalDays',c),0);
+(async()=>{
+ storage.levelup_account='user-a';
+ vm.runInContext(`accountClient={from:()=>({select:()=>({eq:()=>({single:async()=>({data:null,error:{message:'denied'}})})})})}`,c);
+ await assert.rejects(()=>vm.runInContext("accountLoad({id:'user-a'})",c),/latest Supabase setup SQL/);
+ vm.runInContext(`accountClient={from:()=>({select:()=>({eq:()=>({single:async()=>({data:{role:'student',display_name:'Own learner',student_data:{id:501,name:'Own learner',roll:1,rScore:40,mScore:50}},error:null})})})})}`,c);
+ assert.equal(await vm.runInContext("accountLoad({id:'user-a'})",c),true);
+ assert.equal(vm.runInContext('state.students.length',c),1);assert.equal(vm.runInContext('state.students[0].id',c),501);
+ assert.equal(vm.runInContext('Object.keys(state.classesCatalog).length',c),1);assert.equal(vm.runInContext('state.ux.assignments.length',c),0);
+ assert.equal(vm.runInContext('getStudentAttendanceSummary(501).totalDays',c),0);
+ vm.runInContext("state.auth.role='teacher';accountReady=true;renderApp()",c);
+ assert.equal(vm.runInContext('state.auth.role',c),'student');
+ console.log('Profile actions, missing attendance, denied account, learner isolation and role guard passed');
+})().catch(e=>{console.error(e);process.exitCode=1});
